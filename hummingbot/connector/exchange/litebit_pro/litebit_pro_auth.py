@@ -5,9 +5,9 @@ import base64
 from typing import Dict
 
 
-class CoinbaseProAuth:
+class LitebitProAuth:
     """
-    Auth class required by Coinbase Pro API
+    Auth class required by Litebit Pro API
     Learn more at https://docs.pro.coinbase.com/?python#signing-a-message
     """
     def __init__(self, api_key: str, secret_key: str, passphrase: str):

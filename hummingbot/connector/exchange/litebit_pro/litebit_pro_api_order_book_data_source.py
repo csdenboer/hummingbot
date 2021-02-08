@@ -21,7 +21,7 @@ import requests
 import cachetools.func
 
 from hummingbot.core.data_type.order_book import OrderBook
-from hummingbot.connector.exchange.coinbase_pro.coinbase_pro_order_book import CoinbaseProOrderBook
+from hummingbot.connector.exchange.litebit_pro.litebit_pro_order_book import CoinbaseProOrderBook
 from hummingbot.core.data_type.order_book_tracker_data_source import OrderBookTrackerDataSource
 from hummingbot.logger import HummingbotLogger
 from hummingbot.core.data_type.order_book_tracker_entry import OrderBookTrackerEntry

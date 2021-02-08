@@ -12,7 +12,7 @@ from hummingbot.core.data_type.order_book_row import OrderBookRow
 _cbpaot_logger = None
 s_empty_diff = np.ndarray(shape=(0, 4), dtype="float64")
 
-CoinbaseProOrderBookTrackingDictionary = Dict[Decimal, Dict[str, Dict[str, any]]]
+LitebitProOrderBookTrackingDictionary = Dict[Decimal, Dict[str, Dict[str, any]]]
 
 TYPE_OPEN = "open"
 TYPE_CHANGE = "change"
@@ -21,10 +21,10 @@ TYPE_DONE = "done"
 SIDE_BUY = "buy"
 SIDE_SELL = "sell"
 
-cdef class CoinbaseProActiveOrderTracker:
+cdef class LitebitProActiveOrderTracker:
     def __init__(self,
-                 active_asks: CoinbaseProOrderBookTrackingDictionary = None,
-                 active_bids: CoinbaseProOrderBookTrackingDictionary = None):
+                 active_asks: LitebitProOrderBookTrackingDictionary = None,
+                 active_bids: LitebitProOrderBookTrackingDictionary = None):
         super().__init__()
         self._active_asks = active_asks or {}
         self._active_bids = active_bids or {}
@@ -37,7 +37,7 @@ cdef class CoinbaseProActiveOrderTracker:
         return _cbpaot_logger
 
     @property
-    def active_asks(self) -> CoinbaseProOrderBookTrackingDictionary:
+    def active_asks(self) -> LitebitProOrderBookTrackingDictionary:
         """
         Get all asks on the order book in dictionary format
         :returns: Dict[price, Dict[order_id, order_book_message]]
@@ -45,7 +45,7 @@ cdef class CoinbaseProActiveOrderTracker:
         return self._active_asks
 
     @property
-    def active_bids(self) -> CoinbaseProOrderBookTrackingDictionary:
+    def active_bids(self) -> LitebitProOrderBookTrackingDictionary:
         """
         Get all bids on the order book in dictionary format
         :returns: Dict[price, Dict[order_id, order_book_message]]
