@@ -21,22 +21,22 @@ import requests
 import cachetools.func
 
 from hummingbot.core.data_type.order_book import OrderBook
-from hummingbot.connector.exchange.litebit_pro.litebit_pro_order_book import CoinbaseProOrderBook
+from hummingbot.connector.exchange.litebit_pro.litebit_pro_order_book import LitebitProOrderBook
 from hummingbot.core.data_type.order_book_tracker_data_source import OrderBookTrackerDataSource
 from hummingbot.logger import HummingbotLogger
 from hummingbot.core.data_type.order_book_tracker_entry import OrderBookTrackerEntry
 from hummingbot.core.data_type.order_book_message import OrderBookMessage
-from hummingbot.connector.exchange.coinbase_pro.coinbase_pro_active_order_tracker import CoinbaseProActiveOrderTracker
-from hummingbot.connector.exchange.coinbase_pro.coinbase_pro_order_book_tracker_entry import CoinbaseProOrderBookTrackerEntry
+from hummingbot.connector.exchange.litebit_pro.litebit_pro_active_order_tracker import LitebitProActiveOrderTracker
+from hummingbot.connector.exchange.litebit_pro.litebit_pro_order_book_tracker_entry import LitebitProOrderBookTrackerEntry
 from hummingbot.core.utils.async_utils import safe_gather
 
-COINBASE_REST_URL = "https://api.pro.coinbase.com"
-COINBASE_WS_FEED = "wss://ws-feed.pro.coinbase.com"
+LITEBIT_REST_URL = "https://api.pro.coinbase.com"
+LITEBIT_WS_FEED = "wss://ws-feed.pro.coinbase.com"
 MAX_RETRIES = 20
 NaN = float("nan")
 
 
-class CoinbaseProAPIOrderBookDataSource(OrderBookTrackerDataSource):
+class LitebitProAPIOrderBookDataSource(OrderBookTrackerDataSource):
 
     MESSAGE_TIMEOUT = 30.0
     PING_TIMEOUT = 10.0
@@ -61,7 +61,7 @@ class CoinbaseProAPIOrderBookDataSource(OrderBookTrackerDataSource):
     @classmethod
     async def get_last_traded_price(cls, trading_pair: str) -> float:
         async with aiohttp.ClientSession() as client:
-            ticker_url: str = f"{COINBASE_REST_URL}/products/{trading_pair}/ticker"
+            ticker_url: str = f"{LITEBIT_REST_URL}/products/{trading_pair}/ticker"
             resp = await client.get(ticker_url)
             resp_json = await resp.json()
             return float(resp_json["price"])
@@ -69,8 +69,8 @@ class CoinbaseProAPIOrderBookDataSource(OrderBookTrackerDataSource):
     @staticmethod
     @cachetools.func.ttl_cache(ttl=10)
     def get_mid_price(trading_pair: str) -> Optional[Decimal]:
-        COINBASE_PRO_PRICE_URL = "https://api.pro.coinbase.com/products/TO_BE_REPLACED/ticker"
-        resp = requests.get(url=COINBASE_PRO_PRICE_URL.replace("TO_BE_REPLACED", trading_pair))
+        LITEBIT_PRO_PRICE_URL = "https://api.pro.coinbase.com/products/TO_BE_REPLACED/ticker"
+        resp = requests.get(url=LITEBIT_PRO_PRICE_URL.replace("TO_BE_REPLACED", trading_pair))
         record = resp.json()
         if "bid" in record and "ask" in record:
             result = (Decimal(record["bid"]) + Decimal(record["ask"])) / Decimal("2")
@@ -80,7 +80,7 @@ class CoinbaseProAPIOrderBookDataSource(OrderBookTrackerDataSource):
     async def fetch_trading_pairs() -> List[str]:
         try:
             async with aiohttp.ClientSession() as client:
-                async with client.get(f"{COINBASE_REST_URL}/products/", timeout=5) as response:
+                async with client.get(f"{LITEBIT_REST_URL}/products/", timeout=5) as response:
                     if response.status == 200:
                         markets = await response.json()
                         raw_trading_pairs: List[str] = list(map(lambda details: details.get('id'), markets))
@@ -90,7 +90,7 @@ class CoinbaseProAPIOrderBookDataSource(OrderBookTrackerDataSource):
                         return trading_pair_list
 
         except Exception:
-            # Do nothing if the request fails -- there will be no autocomplete for coinbase trading pairs
+            # Do nothing if the request fails -- there will be no autocomplete for litebit trading pairs
             pass
 
         return []
@@ -101,11 +101,11 @@ class CoinbaseProAPIOrderBookDataSource(OrderBookTrackerDataSource):
         Fetches order book snapshot for a particular trading pair from the rest API
         :returns: Response from the rest API
         """
-        product_order_book_url: str = f"{COINBASE_REST_URL}/products/{trading_pair}/book?level=3"
+        product_order_book_url: str = f"{LITEBIT_REST_URL}/products/{trading_pair}/book?level=3"
         async with client.get(product_order_book_url) as response:
             response: aiohttp.ClientResponse = response
             if response.status != 200:
-                raise IOError(f"Error fetching Coinbase Pro market snapshot for {trading_pair}. "
+                raise IOError(f"Error fetching Litebit Pro market snapshot for {trading_pair}. "
                               f"HTTP status is {response.status}.")
             data: Dict[str, Any] = await response.json()
             return data
@@ -114,12 +114,12 @@ class CoinbaseProAPIOrderBookDataSource(OrderBookTrackerDataSource):
         async with aiohttp.ClientSession() as client:
             snapshot: Dict[str, any] = await self.get_snapshot(client, trading_pair)
             snapshot_timestamp: float = time.time()
-            snapshot_msg: OrderBookMessage = CoinbaseProOrderBook.snapshot_message_from_exchange(
+            snapshot_msg: OrderBookMessage = LitebitProOrderBook.snapshot_message_from_exchange(
                 snapshot,
                 snapshot_timestamp,
                 metadata={"trading_pair": trading_pair}
             )
-            active_order_tracker: CoinbaseProActiveOrderTracker = CoinbaseProActiveOrderTracker()
+            active_order_tracker: LitebitProActiveOrderTracker = LitebitProActiveOrderTracker()
             bids, asks = active_order_tracker.convert_snapshot_message_to_order_book_row(snapshot_msg)
             order_book = self.order_book_create_function()
             order_book.apply_snapshot(bids, asks, snapshot_msg.update_id)
@@ -142,17 +142,17 @@ class CoinbaseProAPIOrderBookDataSource(OrderBookTrackerDataSource):
                 try:
                     snapshot: Dict[str, any] = await self.get_snapshot(client, trading_pair)
                     snapshot_timestamp: float = time.time()
-                    snapshot_msg: OrderBookMessage = CoinbaseProOrderBook.snapshot_message_from_exchange(
+                    snapshot_msg: OrderBookMessage = LitebitProOrderBook.snapshot_message_from_exchange(
                         snapshot,
                         snapshot_timestamp,
                         metadata={"trading_pair": trading_pair}
                     )
                     order_book: OrderBook = self.order_book_create_function()
-                    active_order_tracker: CoinbaseProActiveOrderTracker = CoinbaseProActiveOrderTracker()
+                    active_order_tracker: LitebitProActiveOrderTracker = LitebitProActiveOrderTracker()
                     bids, asks = active_order_tracker.convert_snapshot_message_to_order_book_row(snapshot_msg)
                     order_book.apply_snapshot(bids, asks, snapshot_msg.update_id)
 
-                    retval[trading_pair] = CoinbaseProOrderBookTrackerEntry(
+                    retval[trading_pair] = LitebitProOrderBookTrackerEntry(
                         trading_pair,
                         snapshot_timestamp,
                         order_book,
@@ -212,7 +212,7 @@ class CoinbaseProAPIOrderBookDataSource(OrderBookTrackerDataSource):
         while True:
             try:
                 trading_pairs: List[str] = self._trading_pairs
-                async with websockets.connect(COINBASE_WS_FEED) as ws:
+                async with websockets.connect(LITEBIT_WS_FEED) as ws:
                     ws: websockets.WebSocketClientProtocol = ws
                     subscribe_request: Dict[str, Any] = {
                         "type": "subscribe",
@@ -224,20 +224,20 @@ class CoinbaseProAPIOrderBookDataSource(OrderBookTrackerDataSource):
                         msg = ujson.loads(raw_msg)
                         msg_type: str = msg.get("type", None)
                         if msg_type is None:
-                            raise ValueError(f"Coinbase Pro Websocket message does not contain a type - {msg}")
+                            raise ValueError(f"Litebit Pro Websocket message does not contain a type - {msg}")
                         elif msg_type == "error":
-                            raise ValueError(f"Coinbase Pro Websocket received error message - {msg['message']}")
+                            raise ValueError(f"Litebit Pro Websocket received error message - {msg['message']}")
                         elif msg_type in ["open", "match", "change", "done"]:
                             if msg_type == "done" and "price" not in msg:
                                 # done messages with no price are completed market orders which can be ignored
                                 continue
-                            order_book_message: OrderBookMessage = CoinbaseProOrderBook.diff_message_from_exchange(msg)
+                            order_book_message: OrderBookMessage = LitebitProOrderBook.diff_message_from_exchange(msg)
                             output.put_nowait(order_book_message)
                         elif msg_type in ["received", "activate", "subscriptions"]:
                             # these messages are not needed to track the order book
                             continue
                         else:
-                            raise ValueError(f"Unrecognized Coinbase Pro Websocket message received - {msg}")
+                            raise ValueError(f"Unrecognized Litebit Pro Websocket message received - {msg}")
             except asyncio.CancelledError:
                 raise
             except Exception:
@@ -264,7 +264,7 @@ class CoinbaseProAPIOrderBookDataSource(OrderBookTrackerDataSource):
                         try:
                             snapshot: Dict[str, any] = await self.get_snapshot(client, trading_pair)
                             snapshot_timestamp: float = time.time()
-                            snapshot_msg: OrderBookMessage = CoinbaseProOrderBook.snapshot_message_from_exchange(
+                            snapshot_msg: OrderBookMessage = LitebitProOrderBook.snapshot_message_from_exchange(
                                 snapshot,
                                 snapshot_timestamp,
                                 metadata={"product_id": trading_pair}
