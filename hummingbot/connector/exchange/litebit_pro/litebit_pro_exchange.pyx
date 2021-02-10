@@ -84,7 +84,7 @@ cdef class LitebitProExchange(ExchangeBase):
     MAKER_FEE_PERCENTAGE_DEFAULT = 0.005
     TAKER_FEE_PERCENTAGE_DEFAULT = 0.005
 
-    LITEBIT_API_ENDPOINT = "https://api.pro.coinbase.com"
+    LITEBIT_API_ENDPOINT = "https://localhost/api/v2"
 
     @classmethod
     def logger(cls) -> HummingbotLogger:
@@ -94,15 +94,13 @@ cdef class LitebitProExchange(ExchangeBase):
         return s_logger
 
     def __init__(self,
-                 litebit_pro_api_key: str,
-                 litebit_pro_secret_key: str,
-                 litebit_pro_passphrase: str,
+                 litebit_pro_token: str,
                  poll_interval: float = 5.0,    # interval which the class periodically pulls status from the rest API
                  trading_pairs: Optional[List[str]] = None,
                  trading_required: bool = True):
         super().__init__()
         self._trading_required = trading_required
-        self._litebit_auth = LitebitProAuth(litebit_pro_api_key, litebit_pro_secret_key, litebit_pro_passphrase)
+        self._litebit_auth = LitebitProAuth(litebit_pro_token)
         self._order_book_tracker = LitebitProOrderBookTracker(trading_pairs=trading_pairs)
         self._user_stream_tracker = LitebitProUserStreamTracker(litebit_pro_auth=self._litebit_auth,
                                                                 trading_pairs=trading_pairs)

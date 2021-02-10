@@ -30,7 +30,7 @@ from hummingbot.connector.exchange.litebit_pro.litebit_pro_active_order_tracker 
 from hummingbot.connector.exchange.litebit_pro.litebit_pro_order_book_tracker_entry import LitebitProOrderBookTrackerEntry
 from hummingbot.core.utils.async_utils import safe_gather
 
-LITEBIT_REST_URL = "https://api.pro.coinbase.com"
+LITEBIT_REST_URL = "https://localhost/api/v2/"
 LITEBIT_WS_FEED = "wss://ws-feed.pro.coinbase.com"
 MAX_RETRIES = 20
 NaN = float("nan")
@@ -69,7 +69,7 @@ class LitebitProAPIOrderBookDataSource(OrderBookTrackerDataSource):
     @staticmethod
     @cachetools.func.ttl_cache(ttl=10)
     def get_mid_price(trading_pair: str) -> Optional[Decimal]:
-        LITEBIT_PRO_PRICE_URL = "https://api.pro.coinbase.com/products/TO_BE_REPLACED/ticker"
+        LITEBIT_PRO_PRICE_URL = "https://localhost/api/v2/products/TO_BE_REPLACED/ticker"
         resp = requests.get(url=LITEBIT_PRO_PRICE_URL.replace("TO_BE_REPLACED", trading_pair))
         record = resp.json()
         if "bid" in record and "ask" in record:

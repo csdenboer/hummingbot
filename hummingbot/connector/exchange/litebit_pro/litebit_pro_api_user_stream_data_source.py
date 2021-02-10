@@ -19,7 +19,7 @@ from hummingbot.logger import HummingbotLogger
 from hummingbot.core.data_type.order_book_message import OrderBookMessage
 from hummingbot.connector.exchange.litebit_pro.litebit_pro_order_book import LitebitProOrderBook
 
-LITEBIT_REST_URL = "https://api.pro.coinbase.com"
+LITEBIT_REST_URL = "https://localhost/api/v2/"
 LITEBIT_WS_FEED = "wss://ws-feed.pro.coinbase.com"
 MAX_RETRIES = 20
 NaN = float("nan")
