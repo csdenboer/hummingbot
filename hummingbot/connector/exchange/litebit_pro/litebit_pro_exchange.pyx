@@ -306,7 +306,7 @@ cdef class LitebitProExchange(ExchangeBase):
 
         url = f"{self.LITEBIT_API_ENDPOINT}{path_url}" if url is None else url
         data_str = "" if data is None else json.dumps(data)
-        headers = self.coinbase_auth.get_headers(http_method, path_url, data_str)
+        headers = self.litebit_auth.get_headers(http_method, path_url, data_str)
 
         client = await self._http_client()
         async with client.request(http_method,
