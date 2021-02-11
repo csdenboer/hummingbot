@@ -32,7 +32,7 @@ class LitebitProWebsocket(RequestId):
     def __init__(self, auth: Optional[LitebitProAuth] = None):
         self._auth: Optional[LitebitProAuth] = auth
         self._isPrivate = True if self._auth is not None else False
-        self._WS_URL = constants.WSS_PRIVATE_URL if self._isPrivate else constants.WSS_PUBLIC_URL
+        self._WS_URL = constants.WSS_URL
         self._client: Optional[websockets.WebSocketClientProtocol] = None
 
     # connect to exchange
