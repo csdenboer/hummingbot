@@ -8,13 +8,17 @@ from typing import (
 )
 from hummingbot.core.data_type.user_stream_tracker_data_source import UserStreamTrackerDataSource
 from hummingbot.logger import HummingbotLogger
-from hummingbot.core.data_type.user_stream_tracker import UserStreamTracker
+from hummingbot.core.data_type.user_stream_tracker import (
+    UserStreamTracker
+)
 from hummingbot.core.utils.async_utils import (
     safe_ensure_future,
     safe_gather,
 )
-from hummingbot.connector.exchange.litebit_pro.litebit_pro_api_user_stream_data_source import LitebitProAPIUserStreamDataSource
+from hummingbot.connector.exchange.litebit_pro.litebit_pro_api_user_stream_data_source import \
+    LitebitProAPIUserStreamDataSource
 from hummingbot.connector.exchange.litebit_pro.litebit_pro_auth import LitebitProAuth
+from hummingbot.connector.exchange.litebit_pro.litebit_pro_constants import EXCHANGE_NAME
 
 
 class LitebitProUserStreamTracker(UserStreamTracker):
@@ -44,8 +48,10 @@ class LitebitProUserStreamTracker(UserStreamTracker):
         :return: OrderBookTrackerDataSource
         """
         if not self._data_source:
-            self._data_source = LitebitProAPIUserStreamDataSource(litebit_pro_auth=self._litebit_pro_auth,
-                                                                  trading_pairs=self._trading_pairs)
+            self._data_source = LitebitProAPIUserStreamDataSource(
+                crypto_com_auth=self._litebit_pro_auth,
+                trading_pairs=self._trading_pairs
+            )
         return self._data_source
 
     @property
@@ -54,7 +60,7 @@ class LitebitProUserStreamTracker(UserStreamTracker):
         *required
         Name of the current exchange
         """
-        return "litebit_pro"
+        return EXCHANGE_NAME
 
     async def start(self):
         """

@@ -1,122 +1,52 @@
 #!/usr/bin/env python
-
 import asyncio
 import bisect
-from collections import (
-    defaultdict,
-    deque
-)
 import logging
+import hummingbot.connector.exchange.litebit_pro.litebit_pro_constants as constants
 import time
-from typing import (
-    Deque,
-    Dict,
-    List,
-    Optional
-)
 
-from hummingbot.core.event.events import TradeType
+from collections import defaultdict, deque
+from typing import Optional, Dict, List, Deque
+from hummingbot.core.data_type.order_book_message import OrderBookMessageType
 from hummingbot.logger import HummingbotLogger
 from hummingbot.core.data_type.order_book_tracker import OrderBookTracker
-from hummingbot.connector.exchange.litebit_pro.litebit_pro_api_order_book_data_source import LitebitProAPIOrderBookDataSource
 from hummingbot.connector.exchange.litebit_pro.litebit_pro_order_book_message import LitebitProOrderBookMessage
-from hummingbot.core.data_type.order_book_message import (
-    OrderBookMessageType,
-    OrderBookMessage,
-)
-from hummingbot.connector.exchange.litebit_pro.litebit_pro_order_book import LitebitProOrderBook
 from hummingbot.connector.exchange.litebit_pro.litebit_pro_active_order_tracker import LitebitProActiveOrderTracker
+from hummingbot.connector.exchange.litebit_pro.litebit_pro_api_order_book_data_source import LitebitProAPIOrderBookDataSource
+from hummingbot.connector.exchange.litebit_pro.litebit_pro_order_book import LitebitProOrderBook
 
 
 class LitebitProOrderBookTracker(OrderBookTracker):
-    _cbpobt_logger: Optional[HummingbotLogger] = None
+    _logger: Optional[HummingbotLogger] = None
 
     @classmethod
     def logger(cls) -> HummingbotLogger:
-        if cls._cbpobt_logger is None:
-            cls._cbpobt_logger = logging.getLogger(__name__)
-        return cls._cbpobt_logger
+        if cls._logger is None:
+            cls._logger = logging.getLogger(__name__)
+        return cls._logger
 
-    def __init__(self,
-                 trading_pairs: Optional[List[str]] = None):
-        super().__init__(data_source=LitebitProAPIOrderBookDataSource(trading_pairs=trading_pairs),
-                         trading_pairs=trading_pairs)
+    def __init__(self, trading_pairs: Optional[List[str]] = None,):
+        super().__init__(LitebitProAPIOrderBookDataSource(trading_pairs), trading_pairs)
+
         self._ev_loop: asyncio.BaseEventLoop = asyncio.get_event_loop()
         self._order_book_snapshot_stream: asyncio.Queue = asyncio.Queue()
         self._order_book_diff_stream: asyncio.Queue = asyncio.Queue()
+        self._order_book_trade_stream: asyncio.Queue = asyncio.Queue()
         self._process_msg_deque_task: Optional[asyncio.Task] = None
         self._past_diffs_windows: Dict[str, Deque] = {}
         self._order_books: Dict[str, LitebitProOrderBook] = {}
-        self._saved_message_queues: Dict[str, Deque[LitebitProOrderBookMessage]] = defaultdict(lambda: deque(maxlen=1000))
+        self._saved_message_queues: Dict[str, Deque[LitebitProOrderBookMessage]] = \
+            defaultdict(lambda: deque(maxlen=1000))
         self._active_order_trackers: Dict[str, LitebitProActiveOrderTracker] = defaultdict(LitebitProActiveOrderTracker)
+        self._order_book_stream_listener_task: Optional[asyncio.Task] = None
+        self._order_book_trade_listener_task: Optional[asyncio.Task] = None
 
     @property
     def exchange_name(self) -> str:
         """
-        *required
         Name of the current exchange
         """
-        return "litebit_pro"
-
-    async def _order_book_diff_router(self):
-        """
-        Route the real-time order book diff messages to the correct order book.
-        """
-        last_message_timestamp: float = time.time()
-        messages_queued: int = 0
-        messages_accepted: int = 0
-        messages_rejected: int = 0
-        while True:
-            try:
-                ob_message: LitebitProOrderBookMessage = await self._order_book_diff_stream.get()
-                trading_pair: str = ob_message.trading_pair
-                if trading_pair not in self._tracking_message_queues:
-                    messages_queued += 1
-                    # Save diff messages received before snapshots are ready
-                    self._saved_message_queues[trading_pair].append(ob_message)
-                    continue
-                message_queue: asyncio.Queue = self._tracking_message_queues[trading_pair]
-                # Check the order book's initial update ID. If it's larger, don't bother.
-                order_book: LitebitProOrderBook = self._order_books[trading_pair]
-
-                if order_book.snapshot_uid > ob_message.update_id:
-                    messages_rejected += 1
-                    continue
-                await message_queue.put(ob_message)
-                messages_accepted += 1
-                if ob_message.content["type"] == "match":  # put match messages to trade queue
-                    trade_type = float(TradeType.SELL.value) if ob_message.content["side"].upper() == "SELL" \
-                        else float(TradeType.BUY.value)
-                    self._order_book_trade_stream.put_nowait(OrderBookMessage(OrderBookMessageType.TRADE, {
-                        "trading_pair": ob_message.trading_pair,
-                        "trade_type": trade_type,
-                        "trade_id": ob_message.update_id,
-                        "update_id": ob_message.timestamp,
-                        "price": ob_message.content["price"],
-                        "amount": ob_message.content["size"]
-                    }, timestamp=ob_message.timestamp))
-
-                # Log some statistics.
-                now: float = time.time()
-                if int(now / 60.0) > int(last_message_timestamp / 60.0):
-                    self.logger().debug("Diff messages processed: %d, rejected: %d, queued: %d",
-                                        messages_accepted,
-                                        messages_rejected,
-                                        messages_queued)
-                    messages_accepted = 0
-                    messages_rejected = 0
-                    messages_queued = 0
-
-                last_message_timestamp = now
-            except asyncio.CancelledError:
-                raise
-            except Exception:
-                self.logger().network(
-                    f'{"Unexpected error routing order book messages."}',
-                    exc_info=True,
-                    app_warning_msg=f'{"Unexpected error routing order book messages. Retrying after 5 seconds."}'
-                )
-                await asyncio.sleep(5.0)
+        return constants.EXCHANGE_NAME
 
     async def _track_single_book(self, trading_pair: str):
         """
@@ -175,6 +105,6 @@ class LitebitProOrderBookTracker(OrderBookTracker):
                 self.logger().network(
                     f"Unexpected error processing order book messages for {trading_pair}.",
                     exc_info=True,
-                    app_warning_msg=f'{"Unexpected error processing order book messages. Retrying after 5 seconds."}'
+                    app_warning_msg="Unexpected error processing order book messages. Retrying after 5 seconds."
                 )
                 await asyncio.sleep(5.0)

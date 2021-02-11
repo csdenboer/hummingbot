@@ -1,6 +1,5 @@
 #!/usr/bin/env python
 
-import pandas as pd
 from typing import (
     Dict,
     List,
@@ -26,7 +25,8 @@ class LitebitProOrderBookMessage(OrderBookMessage):
         if timestamp is None:
             if message_type is OrderBookMessageType.SNAPSHOT:
                 raise ValueError("timestamp must not be None when initializing snapshot messages.")
-            timestamp = pd.Timestamp(content["time"], tz="UTC").timestamp()
+            timestamp = content["timestamp"]
+
         return super(LitebitProOrderBookMessage, cls).__new__(
             cls, message_type, content, timestamp=timestamp, *args, **kwargs
         )
@@ -34,27 +34,47 @@ class LitebitProOrderBookMessage(OrderBookMessage):
     @property
     def update_id(self) -> int:
         if self.type in [OrderBookMessageType.DIFF, OrderBookMessageType.SNAPSHOT]:
-            return int(self.content["sequence"])
+            return int(self.timestamp * 1e3)
         else:
             return -1
 
     @property
     def trade_id(self) -> int:
         if self.type is OrderBookMessageType.TRADE:
-            return int(self.content["sequence"])
+            return int(self.timestamp * 1e3)
         return -1
 
     @property
     def trading_pair(self) -> str:
-        if "product_id" in self.content:
-            return self.content["product_id"]
-        elif "symbol" in self.content:
-            return self.content["symbol"]
+        if "trading_pair" in self.content:
+            return self.content["trading_pair"]
+        elif "instrument_name" in self.content:
+            return self.content["instrument_name"]
 
     @property
     def asks(self) -> List[OrderBookRow]:
-        raise NotImplementedError("Litebit Pro order book messages have different semantics.")
+        asks = map(self.content["asks"], lambda ask: {"price": ask[0], "amount": ask[1]})
+
+        return [
+            OrderBookRow(float(price), float(amount), self.update_id) for price, amount in asks
+        ]
 
     @property
     def bids(self) -> List[OrderBookRow]:
-        raise NotImplementedError("Litebit Pro order book messages have different semantics.")
+        bids = map(self.content["bids"], lambda bid: {"price": bid[0], "amount": bid[1]})
+
+        return [
+            OrderBookRow(float(price), float(amount), self.update_id) for price, amount in bids
+        ]
+
+    def __eq__(self, other) -> bool:
+        return self.type == other.type and self.timestamp == other.timestamp
+
+    def __lt__(self, other) -> bool:
+        if self.timestamp != other.timestamp:
+            return self.timestamp < other.timestamp
+        else:
+            """
+            If timestamp is the same, the ordering is snapshot < diff < trade
+            """
+            return self.type.value < other.type.value

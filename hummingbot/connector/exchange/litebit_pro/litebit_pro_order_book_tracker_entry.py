@@ -4,11 +4,9 @@ from hummingbot.connector.exchange.litebit_pro.litebit_pro_active_order_tracker 
 
 
 class LitebitProOrderBookTrackerEntry(OrderBookTrackerEntry):
-    def __init__(self,
-                 trading_pair: str,
-                 timestamp: float,
-                 order_book: OrderBook,
-                 active_order_tracker: LitebitProActiveOrderTracker):
+    def __init__(
+        self, trading_pair: str, timestamp: float, order_book: OrderBook, active_order_tracker: LitebitProActiveOrderTracker
+    ):
         self._active_order_tracker = active_order_tracker
         super(LitebitProOrderBookTrackerEntry, self).__init__(trading_pair, timestamp, order_book)
 
