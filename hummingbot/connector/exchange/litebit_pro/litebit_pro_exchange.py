@@ -64,21 +64,19 @@ class LitebitProExchange(ExchangeBase):
         return ctce_logger
 
     def __init__(self,
-                 litebit_pro_api_key: str,
-                 litebit_pro_secret_key: str,
+                 litebit_pro_token: str,
                  trading_pairs: Optional[List[str]] = None,
                  trading_required: bool = True
                  ):
         """
-        :param litebit_pro_api_key: The API key to connect to private Crypto.com APIs.
-        :param litebit_pro_secret_key: The API secret.
+        :param litebit_pro_token: The Access Token to connect to private LitebitPro APIs.
         :param trading_pairs: The market trading pairs which to track order book data.
         :param trading_required: Whether actual trading is needed.
         """
         super().__init__()
         self._trading_required = trading_required
         self._trading_pairs = trading_pairs
-        self._litebit_pro_auth = LitebitProAuth(litebit_pro_api_key, litebit_pro_secret_key)
+        self._litebit_pro_auth = LitebitProAuth(litebit_pro_token)
         self._order_book_tracker = LitebitProOrderBookTracker(trading_pairs=trading_pairs)
         self._user_stream_tracker = LitebitProUserStreamTracker(self._litebit_pro_auth, trading_pairs)
         self._ev_loop = asyncio.get_event_loop()

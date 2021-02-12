@@ -75,15 +75,9 @@ def get_api_reason(code: str) -> str:
 
 
 KEYS = {
-    "litebit_pro_api_key":
-        ConfigVar(key="litebit_pro_api_key",
-                  prompt="Enter your LitebitPro API key >>> ",
-                  required_if=using_exchange("litebit_pro"),
-                  is_secure=True,
-                  is_connect_key=True),
-    "litebit_pro_secret_key":
-        ConfigVar(key="litebit_pro_secret_key",
-                  prompt="Enter your LitebitPro secret key >>> ",
+    "litebit_pro_token":
+        ConfigVar(key="litebit_pro_token",
+                  prompt="Enter your LitebitPro Access Token >>> ",
                   required_if=using_exchange("litebit_pro"),
                   is_secure=True,
                   is_connect_key=True),
