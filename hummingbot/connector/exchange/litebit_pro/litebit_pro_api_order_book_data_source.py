@@ -16,7 +16,7 @@ from hummingbot.core.data_type.order_book import OrderBook
 from hummingbot.core.data_type.order_book_message import OrderBookMessage
 from hummingbot.core.data_type.order_book_tracker_data_source import OrderBookTrackerDataSource
 from hummingbot.logger import HummingbotLogger
-from hummingbot.connector.exchange.litebit_prolitebit_pro_order_book import LitebitProOrderBook
+from hummingbot.connector.exchange.litebit_pro.litebit_pro_order_book import LitebitProOrderBook
 from hummingbot.connector.exchange.litebit_pro.litebit_pro_order_book_tracker_entry import LitebitProOrderBookTrackerEntry
 from hummingbot.connector.exchange.litebit_pro.constants import Constants
 
