@@ -1,71 +1,136 @@
 #!/usr/bin/env python
-import asyncio
-import bisect
-import logging
-import hummingbot.connector.exchange.litebit_pro.litebit_pro_constants as constants
-import time
 
-from collections import defaultdict, deque
-from typing import Optional, Dict, List, Deque
-from hummingbot.core.data_type.order_book_message import OrderBookMessageType
-from hummingbot.logger import HummingbotLogger
+import asyncio
+import logging
+import time
+from collections import deque, defaultdict
+from typing import (
+    Deque,
+    Dict,
+    List,
+    Optional
+)
+
+from hummingbot.core.data_type.order_book import OrderBook
 from hummingbot.core.data_type.order_book_tracker import OrderBookTracker
-from hummingbot.connector.exchange.litebit_pro.litebit_pro_order_book_message import LitebitProOrderBookMessage
-from hummingbot.connector.exchange.litebit_pro.litebit_pro_active_order_tracker import LitebitProActiveOrderTracker
+from hummingbot.core.data_type.order_book_message import OrderBookMessage
+from hummingbot.core.data_type.order_book_message import OrderBookMessageType
 from hummingbot.connector.exchange.litebit_pro.litebit_pro_api_order_book_data_source import LitebitProAPIOrderBookDataSource
-from hummingbot.connector.exchange.litebit_pro.litebit_pro_order_book import LitebitProOrderBook
+from hummingbot.logger import HummingbotLogger
 
 
 class LitebitProOrderBookTracker(OrderBookTracker):
-    _logger: Optional[HummingbotLogger] = None
+    _lobt_logger: Optional[HummingbotLogger] = None
 
     @classmethod
-    def logger(cls) -> HummingbotLogger:
-        if cls._logger is None:
-            cls._logger = logging.getLogger(__name__)
-        return cls._logger
+    def logger(cls) -> (HummingbotLogger):
+        if cls._lobt_logger is None:
+            cls._lobt_logger = logging.getLogger(__name__)
+        return cls._lobt_logger
 
-    def __init__(self, trading_pairs: Optional[List[str]] = None,):
+    def __init__(self, trading_pairs: List[str]):
         super().__init__(LitebitProAPIOrderBookDataSource(trading_pairs), trading_pairs)
-
-        self._ev_loop: asyncio.BaseEventLoop = asyncio.get_event_loop()
-        self._order_book_snapshot_stream: asyncio.Queue = asyncio.Queue()
         self._order_book_diff_stream: asyncio.Queue = asyncio.Queue()
-        self._order_book_trade_stream: asyncio.Queue = asyncio.Queue()
-        self._process_msg_deque_task: Optional[asyncio.Task] = None
-        self._past_diffs_windows: Dict[str, Deque] = {}
-        self._order_books: Dict[str, LitebitProOrderBook] = {}
-        self._saved_message_queues: Dict[str, Deque[LitebitProOrderBookMessage]] = \
-            defaultdict(lambda: deque(maxlen=1000))
-        self._active_order_trackers: Dict[str, LitebitProActiveOrderTracker] = defaultdict(LitebitProActiveOrderTracker)
-        self._order_book_stream_listener_task: Optional[asyncio.Task] = None
-        self._order_book_trade_listener_task: Optional[asyncio.Task] = None
+        self._order_book_snapshot_stream: asyncio.Queue = asyncio.Queue()
+        self._ev_loop: asyncio.BaseEventLoop = asyncio.get_event_loop()
+        self._saved_message_queues: Dict[str, Deque[OrderBookMessage]] = defaultdict(lambda: deque(maxlen=1000))
 
     @property
-    def exchange_name(self) -> str:
+    def exchange_name(self) -> (str):
+        return "litebit_pro"
+
+    async def _order_book_diff_router(self):
         """
-        Name of the current exchange
+        Route the real-time order book diff messages to the correct order book.
         """
-        return constants.EXCHANGE_NAME
+        last_message_timestamp: float = time.time()
+        messages_queued: int = 0
+        messages_accepted: int = 0
+        messages_rejected: int = 0
+        while True:
+            try:
+                ob_message: OrderBookMessage = await self._order_book_diff_stream.get()
+
+                trading_pair: str = ob_message.trading_pair
+                if trading_pair not in self._tracking_message_queues:
+                    messages_queued += 1
+                    # Save diff messages received before snapshots are ready
+                    self._saved_message_queues[trading_pair].append(ob_message)
+                    continue
+                message_queue: asyncio.Queue = self._tracking_message_queues[trading_pair]
+                # Check the order book's initial update ID. If it's larger, don't bother.
+                order_book: OrderBook = self._order_books[trading_pair]
+                if order_book.snapshot_uid > ob_message.update_id:
+                    messages_rejected += 1
+                    continue
+                # LitebitPro order_book diff message does not contain entries to be deleted, it is actually a snapshot with
+                # just one side of the book (either bids or asks), we have to manually check for existing entries here
+                # and include them with 0 amount.
+                if "asks" in ob_message.content and len(ob_message.content["asks"]) > 0:
+                    for price in order_book.snapshot[1].price:
+                        if price not in [float(p[0]) for p in ob_message.content["asks"]]:
+                            ob_message.content["asks"].append([str(price), str(0)])
+                elif "bids" in ob_message.content and len(ob_message.content["bids"]) > 0:
+                    for price in order_book.snapshot[0].price:
+                        if price not in [float(p[0]) for p in ob_message.content["bids"]]:
+                            ob_message.content["bids"].append([str(price), str(0)])
+                await message_queue.put(ob_message)
+                messages_accepted += 1
+
+                # Log some statistics.
+                now: float = time.time()
+                if int(now / 60.0) > int(last_message_timestamp / 60.0):
+                    self.logger().debug("Diff messages processed: %d, rejected %d, queued: %d",
+                                        messages_accepted,
+                                        messages_rejected,
+                                        messages_queued)
+                    messages_accepted = 0
+                    messages_rejected = 0
+                    messages_queued = 0
+
+                last_message_timestamp = now
+            except asyncio.CancelledError:
+                raise
+            except Exception:
+                self.logger().network(
+                    "Unexpected error routing order book messages.",
+                    exec_info=True,
+                    app_warning_msg="Unexpected error routing order book messages. Retrying after 5 seconds."
+                )
+                await asyncio.sleep(5.0)
+
+    async def _order_book_snapshot_router(self):
+        """
+        Route the real-time order book snapshot messages to the correct order book.
+        """
+        while True:
+            try:
+                ob_message: OrderBookMessage = await self._order_book_snapshot_stream.get()
+                trading_pair: str = ob_message.trading_pair
+                if trading_pair not in self._tracking_message_queues:
+                    continue
+                message_queue: asyncio.Queue = self._tracking_message_queues[trading_pair]
+                await message_queue.put(ob_message)
+            except asyncio.CancelledError:
+                raise
+            except Exception:
+                self.logger().error("Unknown error. Retrying after 5 seconds.", exc_info=True)
+                await asyncio.sleep(5.0)
 
     async def _track_single_book(self, trading_pair: str):
-        """
-        Update an order book with changes from the latest batch of received messages
-        """
-        past_diffs_window: Deque[LitebitProOrderBookMessage] = deque()
+        past_diffs_window: Deque[OrderBookMessage] = deque()
         self._past_diffs_windows[trading_pair] = past_diffs_window
 
         message_queue: asyncio.Queue = self._tracking_message_queues[trading_pair]
-        order_book: LitebitProOrderBook = self._order_books[trading_pair]
-        active_order_tracker: LitebitProActiveOrderTracker = self._active_order_trackers[trading_pair]
-
+        order_book: OrderBook = self._order_books[trading_pair]
         last_message_timestamp: float = time.time()
         diff_messages_accepted: int = 0
 
         while True:
             try:
-                message: LitebitProOrderBookMessage = None
-                saved_messages: Deque[LitebitProOrderBookMessage] = self._saved_message_queues[trading_pair]
+                message: OrderBookMessage = None
+                saved_messages: Deque[OrderBookMessage] = self._saved_message_queues[trading_pair]
+
                 # Process saved messages first if there are any
                 if len(saved_messages) > 0:
                     message = saved_messages.popleft()
@@ -73,13 +138,11 @@ class LitebitProOrderBookTracker(OrderBookTracker):
                     message = await message_queue.get()
 
                 if message.type is OrderBookMessageType.DIFF:
-                    bids, asks = active_order_tracker.convert_diff_message_to_order_book_row(message)
-                    order_book.apply_diffs(bids, asks, message.update_id)
+                    order_book.apply_diffs(message.bids, message.asks, message.update_id)
                     past_diffs_window.append(message)
                     while len(past_diffs_window) > self.PAST_DIFF_WINDOW_SIZE:
                         past_diffs_window.popleft()
                     diff_messages_accepted += 1
-
                     # Output some statistics periodically.
                     now: float = time.time()
                     if int(now / 60.0) > int(last_message_timestamp / 60.0):
@@ -88,23 +151,16 @@ class LitebitProOrderBookTracker(OrderBookTracker):
                         diff_messages_accepted = 0
                     last_message_timestamp = now
                 elif message.type is OrderBookMessageType.SNAPSHOT:
-                    past_diffs: List[LitebitProOrderBookMessage] = list(past_diffs_window)
-                    # only replay diffs later than snapshot, first update active order with snapshot then replay diffs
-                    replay_position = bisect.bisect_right(past_diffs, message)
-                    replay_diffs = past_diffs[replay_position:]
-                    s_bids, s_asks = active_order_tracker.convert_snapshot_message_to_order_book_row(message)
-                    order_book.apply_snapshot(s_bids, s_asks, message.update_id)
-                    for diff_message in replay_diffs:
-                        d_bids, d_asks = active_order_tracker.convert_diff_message_to_order_book_row(diff_message)
-                        order_book.apply_diffs(d_bids, d_asks, diff_message.update_id)
-
+                    past_diffs: List[OrderBookMessage] = list(past_diffs_window)
+                    past_diffs_window.append(message)
+                    order_book.restore_from_snapshot_and_diffs(message, past_diffs)
                     self.logger().debug("Processed order book snapshot for %s.", trading_pair)
             except asyncio.CancelledError:
                 raise
             except Exception:
                 self.logger().network(
-                    f"Unexpected error processing order book messages for {trading_pair}.",
-                    exc_info=True,
-                    app_warning_msg="Unexpected error processing order book messages. Retrying after 5 seconds."
+                    f"Unexpected error tracking order book for {trading_pair}",
+                    exec_info=True,
+                    app_warning_msg="Unexpected error tracking order book. Retrying ater 5 seconds."
                 )
                 await asyncio.sleep(5.0)

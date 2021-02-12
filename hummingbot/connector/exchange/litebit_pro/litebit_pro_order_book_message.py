@@ -25,56 +25,33 @@ class LitebitProOrderBookMessage(OrderBookMessage):
         if timestamp is None:
             if message_type is OrderBookMessageType.SNAPSHOT:
                 raise ValueError("timestamp must not be None when initializing snapshot messages.")
-            timestamp = content["timestamp"]
-
+            timestamp = content["time"] * 1e-3
         return super(LitebitProOrderBookMessage, cls).__new__(
             cls, message_type, content, timestamp=timestamp, *args, **kwargs
         )
 
     @property
     def update_id(self) -> int:
-        if self.type in [OrderBookMessageType.DIFF, OrderBookMessageType.SNAPSHOT]:
-            return int(self.timestamp * 1e3)
-        else:
-            return -1
+        return int(self.timestamp * 1e3)
 
     @property
     def trade_id(self) -> int:
-        if self.type is OrderBookMessageType.TRADE:
-            return int(self.timestamp * 1e3)
-        return -1
+        return int(self.timestamp * 1e3)
 
     @property
-    def trading_pair(self) -> str:
-        if "trading_pair" in self.content:
-            return self.content["trading_pair"]
-        elif "instrument_name" in self.content:
-            return self.content["instrument_name"]
+    def trading_pair(self) -> (str):
+        return self.content.get('trading_pair', None)
 
     @property
-    def asks(self) -> List[OrderBookRow]:
-        asks = map(self.content["asks"], lambda ask: {"price": ask[0], "amount": ask[1]})
-
+    def asks(self) -> (List[OrderBookRow]):
         return [
-            OrderBookRow(float(price), float(amount), self.update_id) for price, amount in asks
+            OrderBookRow(float(price), float(amount), self.update_id)
+            for price, amount, *trash in self.content.get("asks", [])
         ]
 
     @property
-    def bids(self) -> List[OrderBookRow]:
-        bids = map(self.content["bids"], lambda bid: {"price": bid[0], "amount": bid[1]})
-
+    def bids(self) -> (List[OrderBookRow]):
         return [
-            OrderBookRow(float(price), float(amount), self.update_id) for price, amount in bids
+            OrderBookRow(float(price), float(amount), self.update_id)
+            for price, amount, *trash in self.content.get("bids", [])
         ]
-
-    def __eq__(self, other) -> bool:
-        return self.type == other.type and self.timestamp == other.timestamp
-
-    def __lt__(self, other) -> bool:
-        if self.timestamp != other.timestamp:
-            return self.timestamp < other.timestamp
-        else:
-            """
-            If timestamp is the same, the ordering is snapshot < diff < trade
-            """
-            return self.type.value < other.type.value
