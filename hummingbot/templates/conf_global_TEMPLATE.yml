@@ -55,6 +55,9 @@ kraken_secret_key: null
 crypto_com_api_key: null
 crypto_com_secret_key: null
 
+litebit_pro_api_key: null
+litebit_pro_secret_key: null
+
 eterbase_api_key: null
 eterbase_secret_key: null
 eterbase_account: null

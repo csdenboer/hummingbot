@@ -18,6 +18,7 @@ connector_status = {
     'huobi': 'green',
     'kraken': 'yellow',
     'kucoin': 'green',
+    'litebit_pro': 'yellow',
     'liquid': 'green',
     'loopring': 'yellow',
     'okex': 'green',

@@ -70,3 +70,6 @@ balancer_taker_fee_amount:
 
 bitmax_maker_fee:
 bitmax_taker_fee:
+
+litebit_pro_maker_fee:
+litebit_pro_taker_fee:
