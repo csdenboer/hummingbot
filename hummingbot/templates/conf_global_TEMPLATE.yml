@@ -76,10 +76,6 @@ crypto_com_secret_key: null
 litebit_pro_api_key: null
 litebit_pro_secret_key: null
 
-eterbase_api_key: null
-eterbase_secret_key: null
-eterbase_account: null
-
 hitbtc_api_key: null
 hitbtc_secret_key: null
 
