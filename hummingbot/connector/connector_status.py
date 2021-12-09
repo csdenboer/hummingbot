@@ -28,6 +28,7 @@ connector_status = {
     'kraken': 'yellow',
     'kucoin': 'yellow',
     'k2': 'red',
+    'litebit_pro': 'yellow',
     'liquid': 'yellow',
     'loopring': 'yellow',
     'mexc': 'yellow',

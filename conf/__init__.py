@@ -104,6 +104,10 @@ bitmart_memo = os.getenv("BITMART_MEMO")
 crypto_com_api_key = os.getenv("CRYPTO_COM_API_KEY")
 crypto_com_secret_key = os.getenv("CRYPTO_COM_SECRET_KEY")
 
+# LiteBit Pro Test
+litebit_pro_api_key = os.getenv("LITEBIT_PRO_API_KEY")
+litebit_pro_secret_key = os.getenv("LITEBIT_PRO_SECRET_KEY")
+
 # HitBTC Tests
 hitbtc_api_key = os.getenv("HITBTC_API_KEY")
 hitbtc_secret_key = os.getenv("HITBTC_SECRET_KEY")
