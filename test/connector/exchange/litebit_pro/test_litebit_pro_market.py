@@ -1,12 +1,12 @@
 from os.path import join, realpath
-import sys; sys.path.insert(0, realpath(join(__file__, "../../../../../")))
+import sys; sys.path.insert(0, realpath(join(__file__, "../../../../../../../")))
+
+from hummingbot.core.mock_api.mock_web_server import MockWebServer
+from hummingbot.core.mock_api.mock_web_socket_server import MockWebSocketServerFactory
+
 from unittest import mock
 
-import requests
-
 from hummingbot.connector.exchange.litebit_pro import litebit_pro_constants
-from test.integration.humming_web_app import HummingWebApp
-from test.integration.humming_ws_server import HummingWsServerFactory
 
 import asyncio
 import logging
@@ -41,7 +41,7 @@ from hummingbot.model.order import Order
 from hummingbot.model.trade_fill import TradeFill
 from hummingbot.connector.markets_recorder import MarketsRecorder
 from hummingbot.connector.exchange.litebit_pro.litebit_pro_exchange import LitebitProExchange
-from test.integration.assets.mock_data.fixture_litebit_pro import FixtureLitebitPro
+from test.connector.exchange.litebit_pro.fixture_litebit_pro import FixtureLitebitPro
 
 logging.basicConfig(level=METRICS_LOG_LEVEL)
 
@@ -77,17 +77,13 @@ class LitebitProExchangeUnitTest(unittest.TestCase):
 
         if API_MOCK_ENABLED:
             # TODO: fix for litebit
-            cls.web_app = HummingWebApp.get_instance()
+            cls.web_app = MockWebServer.get_instance()
             cls.web_app.add_host_to_mock(cls.base_api_url, ["/api/v2/time", "/api/v2/markets", "/api/v2/book"])
             cls.web_app.start()
             cls.ev_loop.run_until_complete(cls.web_app.wait_til_started())
             cls._patcher = mock.patch("aiohttp.client.URL")
             cls._url_mock = cls._patcher.start()
             cls._url_mock.side_effect = cls.web_app.reroute_local
-
-            cls._req_patcher = unittest.mock.patch.object(requests.Session, "request", autospec=True)
-            cls._req_url_mock = cls._req_patcher.start()
-            cls._req_url_mock.side_effect = HummingWebApp.reroute_request
             cls.web_app.update_response("get", cls.base_api_url, "/api/v2/balances", FixtureLitebitPro.BALANCES)
             cls.web_app.update_response("get", cls.base_api_url, "/api/v2/markets",
                                         FixtureLitebitPro.MARKETS)
@@ -98,10 +94,10 @@ class LitebitProExchangeUnitTest(unittest.TestCase):
             cls.web_app.update_response("get", cls.base_api_url, "/api/v2/order", {})
             cls.web_app.update_response("delete", cls.base_api_url, "/api/v2/orders", {})
 
-            HummingWsServerFactory.start_new_server(litebit_pro_constants.WSS_URL)
+            MockWebSocketServerFactory.start_new_server(litebit_pro_constants.WSS_URL)
             cls._ws_patcher = unittest.mock.patch("websockets.connect", autospec=True)
             cls._ws_mock = cls._ws_patcher.start()
-            cls._ws_mock.side_effect = HummingWsServerFactory.reroute_ws_connect
+            cls._ws_mock.side_effect = MockWebSocketServerFactory.reroute_ws_connect
 
             cls._t_nonce_patcher = unittest.mock.patch(
                 "hummingbot.connector.exchange.litebit_pro.litebit_pro_utils.get_tracking_nonce")
@@ -284,11 +280,11 @@ class LitebitProExchangeUnitTest(unittest.TestCase):
         if API_MOCK_ENABLED:
             message = FixtureLitebitPro.WS_AFTER_LIMIT_BUY.copy()
             message["data"]["client_id"] = buy_id
-            HummingWsServerFactory.send_json_threadsafe(litebit_pro_constants.WSS_URL, message, delay=0.1)
+            MockWebSocketServerFactory.send_json_threadsafe(litebit_pro_constants.WSS_URL, message, delay=0.1)
 
             message = FixtureLitebitPro.WS_AFTER_LIMIT_SELL.copy()
             message["data"]["client_id"] = sell_id
-            HummingWsServerFactory.send_json_threadsafe(litebit_pro_constants.WSS_URL, message, delay=0.1)
+            MockWebSocketServerFactory.send_json_threadsafe(litebit_pro_constants.WSS_URL, message, delay=0.1)
 
         [cancellation_results] = self.run_parallel(self.connector.cancel_all(5))
         for cr in cancellation_results:
@@ -360,11 +356,11 @@ class LitebitProExchangeUnitTest(unittest.TestCase):
         if API_MOCK_ENABLED:
             message = FixtureLitebitPro.WS_AFTER_LIMIT_BUY.copy()
             message["data"]["client_id"] = cl_order_id_1
-            HummingWsServerFactory.send_json_threadsafe(litebit_pro_constants.WSS_URL, message, delay=0.1)
+            MockWebSocketServerFactory.send_json_threadsafe(litebit_pro_constants.WSS_URL, message, delay=0.1)
 
             message = FixtureLitebitPro.WS_AFTER_LIMIT_SELL.copy()
             message["data"]["client_id"] = cl_order_id_2
-            HummingWsServerFactory.send_json_threadsafe(litebit_pro_constants.WSS_URL, message, delay=0.1)
+            MockWebSocketServerFactory.send_json_threadsafe(litebit_pro_constants.WSS_URL, message, delay=0.1)
 
         [cancellation_results] = self.run_parallel(self.connector.cancel_all(5))
         for cr in cancellation_results:
@@ -432,7 +428,7 @@ class LitebitProExchangeUnitTest(unittest.TestCase):
             if API_MOCK_ENABLED:
                 message = FixtureLitebitPro.WS_AFTER_LIMIT_BUY_CANCEL.copy()
                 message["data"]["client_id"] = order_id
-                HummingWsServerFactory.send_json_threadsafe(litebit_pro_constants.WSS_URL, message, delay=0.1)
+                MockWebSocketServerFactory.send_json_threadsafe(litebit_pro_constants.WSS_URL, message, delay=0.1)
 
             self.connector.cancel(self.trading_pair, order_id)
             self.run_parallel(self.event_logger.wait_for(OrderCancelledEvent))
@@ -521,5 +517,5 @@ class LitebitProExchangeUnitTest(unittest.TestCase):
             message = fixture_ws_1.copy()
             message["data"]["uuid"] = exchange_order_id
             message["data"]["client_id"] = order_id
-            HummingWsServerFactory.send_json_threadsafe(litebit_pro_constants.WSS_URL, message, delay=0.1)
+            MockWebSocketServerFactory.send_json_threadsafe(litebit_pro_constants.WSS_URL, message, delay=0.1)
         return order_id

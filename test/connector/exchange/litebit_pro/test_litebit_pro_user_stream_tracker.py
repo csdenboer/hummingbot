@@ -11,7 +11,7 @@ from hummingbot.connector.exchange.litebit_pro.litebit_pro_user_stream_tracker i
 from hummingbot.connector.exchange.litebit_pro.litebit_pro_auth import LitebitProAuth
 from hummingbot.core.utils.async_utils import safe_ensure_future
 
-sys.path.insert(0, realpath(join(__file__, "../../../")))
+sys.path.insert(0, realpath(join(__file__, "../../../../../")))
 
 
 class LitebitProUserStreamTrackerUnitTest(unittest.TestCase):
