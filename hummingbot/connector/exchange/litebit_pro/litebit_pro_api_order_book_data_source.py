@@ -39,7 +39,7 @@ class LitebitProAPIOrderBookDataSource(OrderBookTrackerDataSource):
     @staticmethod
     async def fetch_trading_pairs() -> List[str]:
         async with aiohttp.ClientSession() as client:
-            async with client.get(f"{constants.REST_URL}/api/v2/markets", timeout=10) as response:
+            async with client.get(f"{constants.REST_URL}/v1/markets", timeout=10) as response:
                 if response.status == 200:
                     try:
                         data: List[dict] = await response.json()
@@ -54,7 +54,7 @@ class LitebitProAPIOrderBookDataSource(OrderBookTrackerDataSource):
     async def get_last_traded_prices(cls, trading_pairs: List[str]) -> Dict[str, float]:
         result = {}
         async with aiohttp.ClientSession() as client:
-            resp = await client.get(f"{constants.REST_URL}/api/v2/tickers")
+            resp = await client.get(f"{constants.REST_URL}/v1/tickers")
             resp_json = await resp.json()
             for t_pair in trading_pairs:
                 ticker = next((ticker for ticker in resp_json if
@@ -160,7 +160,7 @@ class LitebitProAPIOrderBookDataSource(OrderBookTrackerDataSource):
         """
         async with aiohttp.ClientSession() as client:
             order_book_response = await client.get(
-                f"{constants.REST_URL}/api/v2/book",
+                f"{constants.REST_URL}/v1/book",
                 params={"market": litebit_pro_utils.convert_to_exchange_trading_pair(trading_pair)}
             )
 

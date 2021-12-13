@@ -78,21 +78,21 @@ class LitebitProExchangeUnitTest(unittest.TestCase):
         if API_MOCK_ENABLED:
             # TODO: fix for litebit
             cls.web_app = MockWebServer.get_instance()
-            cls.web_app.add_host_to_mock(cls.base_api_url, ["/api/v2/time", "/api/v2/markets", "/api/v2/book"])
+            cls.web_app.add_host_to_mock(cls.base_api_url, ["/v1/time", "/v1/markets", "/v1/book"])
             cls.web_app.start()
             cls.ev_loop.run_until_complete(cls.web_app.wait_til_started())
             cls._patcher = mock.patch("aiohttp.client.URL")
             cls._url_mock = cls._patcher.start()
             cls._url_mock.side_effect = cls.web_app.reroute_local
-            cls.web_app.update_response("get", cls.base_api_url, "/api/v2/balances", FixtureLitebitPro.BALANCES)
-            cls.web_app.update_response("get", cls.base_api_url, "/api/v2/markets",
+            cls.web_app.update_response("get", cls.base_api_url, "/v1/balances", FixtureLitebitPro.BALANCES)
+            cls.web_app.update_response("get", cls.base_api_url, "/v1/markets",
                                         FixtureLitebitPro.MARKETS)
-            cls.web_app.update_response("get", cls.base_api_url, "/api/v2/fee",
+            cls.web_app.update_response("get", cls.base_api_url, "/v1/fee",
                                         FixtureLitebitPro.TRADE_FEES)
-            cls.web_app.update_response("get", cls.base_api_url, "/api/v2/tickers",
+            cls.web_app.update_response("get", cls.base_api_url, "/v1/tickers",
                                         FixtureLitebitPro.TICKERS)
-            cls.web_app.update_response("get", cls.base_api_url, "/api/v2/order", {})
-            cls.web_app.update_response("delete", cls.base_api_url, "/api/v2/orders", {})
+            cls.web_app.update_response("get", cls.base_api_url, "/v1/order", {})
+            cls.web_app.update_response("delete", cls.base_api_url, "/v1/orders", {})
 
             MockWebSocketServerFactory.start_new_server(litebit_pro_constants.WSS_URL)
             cls._ws_patcher = unittest.mock.patch("websockets.connect", autospec=True)
@@ -506,7 +506,7 @@ class LitebitProExchangeUnitTest(unittest.TestCase):
         order_id = None
         if API_MOCK_ENABLED:
             resp = self._order_response(fixture_resp, nonce, 'buy' if is_buy else 'sell', trading_pair)
-            self.web_app.update_response("post", self.base_api_url, "/api/v2/order", resp)
+            self.web_app.update_response("post", self.base_api_url, "/v1/order", resp)
         if is_buy:
             order_id = self.connector.buy(trading_pair, amount, order_type, price)
         else:
