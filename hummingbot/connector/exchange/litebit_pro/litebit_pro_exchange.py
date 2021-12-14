@@ -319,13 +319,9 @@ class LitebitProExchange(ExchangeBase):
             raise IOError(f"Error parsing data from {url}. Error: {str(e)}")
 
         if response.status >= 400:
-            if parsed_response['code'] == 50000:
-                print(headers)
-
             raise IOError(f"Error fetching data from {url}. HTTP status is {response.status}. "
                           f"Message: {parsed_response}")
-        # print(f"REQUEST: {method} {path_url} {params}")
-        # print(f"RESPONSE: {parsed_response}")
+
         return parsed_response
 
     def get_order_price_quantum(self, trading_pair: str, price: Decimal):
