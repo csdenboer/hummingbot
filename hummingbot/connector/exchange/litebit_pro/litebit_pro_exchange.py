@@ -276,7 +276,7 @@ class LitebitProExchange(ExchangeBase):
                                                    min_price_increment=Decimal(market["tick_size"]),
                                                    min_base_amount_increment=Decimal(market["step_size"]),
                                                    min_notional_size=Decimal(market["minimum_amount_quote"]),
-                                                   min_order_size=Decimal("0.00000001"))
+                                                   min_order_size=Decimal(market["step_size"]))
             except Exception:
                 self.logger().error(f"Error parsing the trading pair rule {market}.  Skipping.", exc_info=True)
         return result
