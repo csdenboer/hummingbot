@@ -225,7 +225,7 @@ class LitebitProExchange(ExchangeBase):
         the network connection. Simply ping the network (or call any light weight public API).
         """
         try:
-            await self._api_request("get", "/v1/time")
+            await self._api_request("get", constants.GET_TIME_PATH)
         except asyncio.CancelledError:
             raise
         except Exception:
@@ -258,7 +258,7 @@ class LitebitProExchange(ExchangeBase):
                 await asyncio.sleep(0.5)
 
     async def _update_trading_rules(self):
-        instruments_info = await self._api_request("get", path_url="/v1/markets")
+        instruments_info = await self._api_request("get", path_url=constants.GET_MARKETS_PATH)
         self._trading_rules.clear()
         self._trading_rules = self._format_trading_rules(instruments_info)
 
@@ -438,7 +438,7 @@ class LitebitProExchange(ExchangeBase):
                                       amount,
                                       order_type
                                       )
-            order_result = await self._api_request("post", "/v1/order", api_params, True)
+            order_result = await self._api_request("post", constants.CREATE_ORDER_PATH, api_params, True)
 
             exchange_order_id = str(order_result["uuid"])
             tracked_order = self._in_flight_orders.get(order_id)
@@ -510,7 +510,7 @@ class LitebitProExchange(ExchangeBase):
             return None
         exchange_order_id = await order.get_exchange_order_id()
         result = await self._api_request("get",
-                                         "/v1/order",
+                                         constants.GET_ORDER_PATH,
                                          {"market": litebit_pro_utils.convert_to_exchange_trading_pair(
                                              order.trading_pair), "uuid": exchange_order_id},
                                          True)
@@ -532,7 +532,7 @@ class LitebitProExchange(ExchangeBase):
             ex_order_id = tracked_order.exchange_order_id
             await self._api_request(
                 "delete",
-                "/v1/orders",
+                constants.CANCEL_ORDERS_PATH,
                 {"market": litebit_pro_utils.convert_to_exchange_trading_pair(trading_pair), "orders": [ex_order_id]},
                 True
             )
@@ -579,7 +579,7 @@ class LitebitProExchange(ExchangeBase):
         remote_asset_names = set()
 
         try:
-            account_info = await self._api_request("get", "/v1/balances", None, True)
+            account_info = await self._api_request("get", constants.GET_BALANCES_PATH, None, True)
         except Exception:
             raise
 
@@ -726,7 +726,7 @@ class LitebitProExchange(ExchangeBase):
         try:
             await self._api_request(
                 "delete",
-                "/v1/orders",
+                constants.CANCEL_ORDERS_PATH,
                 {},
                 True
             )
