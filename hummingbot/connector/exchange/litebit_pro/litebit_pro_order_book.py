@@ -9,6 +9,8 @@ from typing import (
     Dict,
     List, Any)
 
+from hummingbot.connector.exchange.litebit_pro import litebit_pro_utils
+from hummingbot.core.event.events import TradeType
 from hummingbot.logger import HummingbotLogger
 from hummingbot.core.data_type.order_book import OrderBook
 from hummingbot.core.data_type.order_book_message import (
@@ -92,17 +94,27 @@ class LitebitProOrderBook(OrderBook):
         )
 
     @classmethod
-    def trade_message_from_exchange(cls,
-                                    msg: Dict[str, Any],
-                                    timestamp: Optional[float] = None,
-                                    metadata: Optional[Dict] = None):
+    def trade_message_from_exchange(cls, msg: Dict[str, Any], metadata: Optional[Dict] = None):
         """
         Convert a trade data into standard OrderBookMessage format
-        :param record: a trade data from the database
         :return: LitebitProOrderBook
         """
-        # TODO: see LitebitProAPIOrderBookDataSource's listen_for_trades
-        raise NotImplementedError()
+        if metadata:
+            msg.update(metadata)
+
+        return LitebitProOrderBookMessage(
+            message_type=OrderBookMessageType.TRADE,
+            content={
+                **msg,
+                "trading_pair": litebit_pro_utils.convert_from_exchange_trading_pair(
+                    msg["market"]
+                ),
+                # side of the taker
+                "trade_type": float(TradeType.SELL.value) if msg["side"] == "sell" else float(
+                    TradeType.BUY.value)
+            },
+            timestamp=ms_timestamp_to_s(msg["timestamp"])
+        )
 
     @classmethod
     def trade_message_from_db(cls, record: RowProxy, metadata: Optional[Dict] = None):

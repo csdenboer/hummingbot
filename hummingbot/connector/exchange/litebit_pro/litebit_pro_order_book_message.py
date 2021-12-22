@@ -41,7 +41,8 @@ class LitebitProOrderBookMessage(OrderBookMessage):
 
     @property
     def trade_id(self) -> int:
-        return -1
+        # we cannot use uuid, because we need to return an integer
+        return int(self.content["timestamp"])
 
     @property
     def asks(self) -> List[OrderBookRow]:
@@ -60,12 +61,3 @@ class LitebitProOrderBookMessage(OrderBookMessage):
         ]
 
         return results
-
-    @property
-    def has_update_id(self) -> int:
-        return True
-
-    @property
-    def has_trade_id(self) -> bool:
-        # TODO: see LitebitProAPIOrderBookDataSource's listen_for_trades
-        return False

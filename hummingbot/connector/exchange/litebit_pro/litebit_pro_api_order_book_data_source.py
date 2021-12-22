@@ -47,7 +47,7 @@ class LitebitProAPIOrderBookDataSource(OrderBookTrackerDataSource):
                                 data]
                     except Exception:
                         pass
-                        # Do nothing if the request fails -- there will be no autocomplete for kucoin trading pairs
+                        # Do nothing if the request fails -- there will be no autocomplete for litebit pro trading pairs
                 return []
 
     @classmethod
@@ -79,8 +79,33 @@ class LitebitProAPIOrderBookDataSource(OrderBookTrackerDataSource):
         """
         Listen for trades using websocket trade channel
         """
-        # TODO: we currently don't have a websocket subscription for this
-        pass
+        while True:
+            try:
+                ws = LitebitProWebsocket()
+                await ws.connect()
+
+                for pair in self._trading_pairs:
+                    await ws.subscribe([f"trades:{litebit_pro_utils.convert_to_exchange_trading_pair(pair)}"])
+
+                async for message in ws.on_message():
+                    if message["event"] == "trade":
+                        trade_msg: OrderBookMessage = LitebitProOrderBook.trade_message_from_exchange(
+                            message["data"]
+                        )
+                        output.put_nowait(trade_msg)
+
+            except asyncio.CancelledError:
+                raise
+            except Exception:
+                self.logger().network(
+                    "Unexpected error with WebSocket connection.",
+                    exc_info=True,
+                    app_warning_msg="Unexpected error with WebSocket connection. Retrying in 30 seconds. "
+                                    "Check network connection."
+                )
+                await asyncio.sleep(30.0)
+            finally:
+                await ws.disconnect()
 
     async def listen_for_order_book_diffs(self, ev_loop: asyncio.BaseEventLoop, output: asyncio.Queue):
         """
