@@ -1,8 +1,8 @@
 # A single source of truth for constant variables related to the exchange
 
 EXCHANGE_NAME = "litebit_pro"
-REST_URL = "https://api.exchange.acceptance.litebit.tech"
-WSS_URL = "wss://websockets.exchange.acceptance.litebit.tech/"
+REST_URL = "https://api.exchange.acc.litebit.cloud"
+WSS_URL = "wss://ws.exchange.acc.litebit.cloud/"
 
 GET_MARKETS_PATH = '/v1/markets'
 GET_TICKERS_PATH = '/v1/tickers'
