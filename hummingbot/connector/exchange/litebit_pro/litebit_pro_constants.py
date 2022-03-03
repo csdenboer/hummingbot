@@ -2,7 +2,7 @@
 
 EXCHANGE_NAME = "litebit_pro"
 REST_URL = "https://api.exchange.acc.litebit.cloud"
-WSS_URL = "wss://ws.exchange.acc.litebit.cloud/"
+WSS_URL = "wss://ws.exchange.acc.litebit.cloud/v1"
 
 GET_MARKETS_PATH = '/v1/markets'
 GET_TICKERS_PATH = '/v1/tickers'
