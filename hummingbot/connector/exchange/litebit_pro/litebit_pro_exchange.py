@@ -584,7 +584,7 @@ class LitebitProExchange(ExchangeBase):
             raise
 
         for account in account_info:
-            asset_name = account["currency"]
+            asset_name = account["asset"]
             self._account_available_balances[asset_name] = Decimal(str(account["available"]))
             self._account_balances[asset_name] = Decimal(str(account["total"]))
             remote_asset_names.add(asset_name)
@@ -810,7 +810,7 @@ class LitebitProExchange(ExchangeBase):
                     if tracked_order is not None:
                         self._process_order_message(tracked_order.client_order_id, data)
                 elif event == "balance":
-                    asset_name = data["currency"]
+                    asset_name = data["asset"]
                     self._account_balances[asset_name] = Decimal(str(data["available"])) + Decimal(
                         str(data["reserved"]))
                     self._account_available_balances[asset_name] = Decimal(str(data["available"]))
