@@ -94,3 +94,6 @@ bybit_perpetual_taker_fee:
 
 bybit_perpetual_testnet_maker_fee:
 bybit_perpetual_testnet_taker_fee:
+
+litebit_pro_maker_fee:
+litebit_pro_taker_fee:

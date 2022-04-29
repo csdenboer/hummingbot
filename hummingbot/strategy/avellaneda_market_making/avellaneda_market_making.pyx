@@ -31,7 +31,7 @@ from hummingbot.strategy.__utils__.trailing_indicators.instant_volatility import
 from hummingbot.strategy.__utils__.trailing_indicators.trading_intensity import TradingIntensityIndicator
 from hummingbot.strategy.conditional_execution_state import (
     RunAlwaysExecutionState,
-    RunInTimeConditionalExecutionState
+    RunInTimeConditionalExecutionState, ConditionalExecutionState
 )
 from hummingbot.strategy.data_types import (
     Proposal,
